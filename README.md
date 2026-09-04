@@ -217,6 +217,24 @@ src/
 
 ---
 
+## 🧪 Example App
+
+A full interactive example lives in [`/example`](./example). It renders the
+library against a Vite + React + Tailwind app so you can see the modal, wallet
+detection, auto-reconnect, message signing, and network switching in the
+browser.
+
+```bash
+cd example
+npm install
+npm run dev
+# open http://localhost:5173
+```
+
+> Tip: install the **Freighter** Chrome extension to test a real connection.
+
+---
+
 ## 📄 License
 
 MIT © Stellar Wallet Adapter contributors

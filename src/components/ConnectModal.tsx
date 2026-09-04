@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FC, ReactNode } from "react";
 import type { ConnectModalProps, WalletAdapter } from "../types";
 

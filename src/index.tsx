@@ -1,11 +1,13 @@
-import React from "react";
 import type { FC, ReactNode } from "react";
 import { ConnectModal } from "./components/ConnectModal";
 import { useWallet } from "./hooks/useWallet";
 import { WalletProvider } from "./context/WalletContext";
+import type { StellarNetwork } from "./types";
 
 export interface StellarWalletAdapterProps {
   children: ReactNode;
+  defaultNetwork?: StellarNetwork;
+  autoConnect?: boolean;
 }
 
 /**
@@ -14,9 +16,11 @@ export interface StellarWalletAdapterProps {
  */
 export const StellarWalletAdapter: FC<StellarWalletAdapterProps> = ({
   children,
+  defaultNetwork,
+  autoConnect = true,
 }) => {
   return (
-    <WalletProvider>
+    <WalletProvider defaultNetwork={defaultNetwork} autoConnect={autoConnect}>
       <ConnectedModalBoundary>{children}</ConnectedModalBoundary>
     </WalletProvider>
   );
