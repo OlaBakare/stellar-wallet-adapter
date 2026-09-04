@@ -44,7 +44,7 @@ const ConnectedModalBoundary: FC<{ children: ReactNode }> = ({ children }) => {
         isOpen={isModalOpen}
         onClose={closeModal}
         wallets={wallets}
-        onSelectWallet={(id) => void connect(id)}
+        onSelectWallet={(id) => void connect(id).catch(() => undefined)}
         isConnecting={isConnecting}
         connectingWalletId={activeWallet?.id ?? null}
         error={error}

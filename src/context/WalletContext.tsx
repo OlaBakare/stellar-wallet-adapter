@@ -31,8 +31,11 @@ export const WalletProvider: FC<WalletProviderProps> = ({
   children,
   defaultNetwork = DEFAULT_NETWORK,
   autoConnect = true,
+  wallets: injectedWallets,
 }) => {
-  const [wallets] = useState<WalletAdapter[]>(DEFAULT_WALLETS);
+  const [wallets] = useState<WalletAdapter[]>(
+    injectedWallets?.length ? injectedWallets : DEFAULT_WALLETS
+  );
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
@@ -79,6 +82,9 @@ export const WalletProvider: FC<WalletProviderProps> = ({
         setIsConnected(false);
         setWalletAddress("");
         setActiveWallet(null);
+        // Re-throw so callers using `useWalletActions` (or a try/catch) can
+        // react to the rejected request directly.
+        throw new Error(message);
       } finally {
         setIsConnecting(false);
       }

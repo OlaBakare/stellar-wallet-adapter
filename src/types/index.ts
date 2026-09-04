@@ -38,6 +38,8 @@ export interface WalletProviderProps {
   children: React.ReactNode;
   defaultNetwork?: StellarNetwork;
   autoConnect?: boolean;
+  /** Injectable wallet adapters. Defaults to Freighter, Albedo and Hana. */
+  wallets?: WalletAdapter[];
 }
 
 export interface ConnectModalProps {

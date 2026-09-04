@@ -1,57 +1,63 @@
 # 🌠 Stellar Wallet Adapter
 
-A **plug-and-play, open-source React UI library and context provider** that unifies native Stellar wallet connections. Connect, disconnect, and sign messages across the top **3 Stellar wallets** — **Freighter**, **Albedo**, and **Hana** — with a single drop-in provider and a beautiful, accessible connection modal.
+A **React-first wallet connection layer** for Stellar dApps that unifies
+**Freighter**, **Albedo**, and **Hana** behind a single typed API — with a
+drop-in, accessible connection modal.
 
 Built with **TypeScript**, **React 18+**, and **Tailwind CSS**.
+
+> **No reinvention.** This library deliberately sits **on top of** the official
+> [`@creit.tech/stellar-wallets-kit`](https://stellarwalletskit.dev/) — the
+> ecosystem-standard wallet integration — rather than re-implementing wallet
+> communication. It adds what the ecosystem was missing: a **typed React layer**,
+> **auto-reconnect**, an **accessible modal**, and **per-action loading state**.
+> That makes it a complement to (not a duplicate of) the official toolkit.
 
 ---
 
 ## ✨ Features
 
-- 🔌 **One provider, three wallets** — Freighter, Albedo, and Hana behind a unified API.
-- 📦 **Drop-in `<ConnectModal />`** — responsive, keyboard-accessible, with live wallet detection.
-- 💾 **Auto-reconnect** — persists the last wallet + address in `localStorage` and reconnects on page load.
-- 🛡️ **Graceful error handling** — rejected requests, missing extensions, and locked wallets are surfaced clearly.
-- 🔐 **Full type safety** — strict TypeScript throughout.
-- 🎨 **Tailwind CSS** modular styling with a Stellar-themed dark/light design.
+- 🔌 **Three wallets, one API** — Freighter, Albedo and Hana behind a uniform
+  `WalletAdapter` contract.
+- 🧩 **Built on the official kit** — wallet logic delegated to
+  `@creit.tech/stellar-wallets-kit`, so behaviour stays aligned with the
+  ecosystem standard.
+- 📦 **Drop-in `<ConnectModal />`** — responsive, keyboard-accessible, with live
+  wallet detection and per-wallet loading spinners.
+- 💾 **Auto-reconnect** — persists the last wallet + address in `localStorage`
+  and reconnects on page load.
+- 🛡️ **Graceful error handling** — rejected requests, missing extensions, and
+  locked wallets are surfaced clearly (and re-thrown for callers via
+  `useWalletActions`).
+- 🔐 **Strict TypeScript** throughout, with injectable adapters for testing.
 - 🪝 **`useWallet()` + `useWalletActions()`** custom hooks.
 
 ---
 
-## 📦 What's Exposed
-
-| Export | Type | Description |
-|--------|------|-------------|
-| `WalletProvider` | Context Provider | Wraps your app, exposes wallet state & actions |
-| `useWallet` | Hook | Read/write access to wallet context |
-| `useWalletActions` | Hook | Context + per-action loading state |
-| `ConnectModal` | Component | Accessible wallet-connection modal |
-| `StellarWalletAdapter` | Component | Provider + bound modal in one line |
-| `useWallet` | Context | Low-level context (for advanced use) |
-
----
-
-## 🚀 Quick Start
-
-### 1. Install
+## 📦 Install
 
 ```bash
 npm install stellar-wallet-adapter
 ```
 
-### 2. Configure Tailwind (optional)
+`react` and `react-dom` (>= 18) are peer dependencies.
 
-The modal is styled with Tailwind utility classes. Add the package to your `tailwind.config`:
+---
+
+## 🚀 Quick Start
+
+### 1. Configure Tailwind (optional)
+
+The modal uses Tailwind classes. Add the package to your `tailwind.config`:
 
 ```js
-// tailwind.config.js
 module.exports = {
-  content: ["./src/**/*.{ts,tsx}", "./node_modules/stellar-wallet-adapter/dist/**/*.{js,mjs}"],
+  content: ["./src/**/*.{ts,tsx}", "./node_modules/stellar-wallet-adapter/dist/**/*"],
   // ...
 };
 ```
 
-### 3. Wrap your app
+### 2. Wrap your app
 
 ```tsx
 import { StellarWalletAdapter, useWallet } from "stellar-wallet-adapter";
@@ -67,7 +73,9 @@ function AppContent() {
           <button onClick={() => void disconnect()}>Disconnect</button>
         </>
       ) : (
-        <button onClick={() => connect("freighter")}>Connect Freighter</button>
+        <button onClick={() => connect("freighter").catch(() => {})}>
+          Connect Freighter
+        </button>
       )}
     </div>
   );
@@ -75,28 +83,17 @@ function AppContent() {
 
 export default function App() {
   return (
-    // One-liner: provider + modal bound together
-    <StellarWalletAdapter defaultNetwork="TESTNET">
+    <StellarWalletAdapter defaultNetwork="TESTNET" autoConnect>
       <AppContent />
     </StellarWalletAdapter>
   );
 }
 ```
 
-### 4. (Optional) Manual setup
-
-Prefer explicit wiring? Use the provider separately and render the modal yourself:
+### 3. (Optional) Manual setup
 
 ```tsx
 import { WalletProvider, useWallet, ConnectModal } from "stellar-wallet-adapter";
-
-function App() {
-  return (
-    <WalletProvider autoConnect defaultNetwork="TESTNET">
-      <ModalBoundary />
-    </WalletProvider>
-  );
-}
 
 function ModalBoundary() {
   const { isModalOpen, closeModal, wallets, connect, activeWallet, isConnecting, error } =
@@ -107,11 +104,19 @@ function ModalBoundary() {
       isOpen={isModalOpen}
       onClose={closeModal}
       wallets={wallets}
-      onSelectWallet={(id) => void connect(id)}
+      onSelectWallet={(id) => void connect(id).catch(() => {})}
       isConnecting={isConnecting}
       connectingWalletId={activeWallet?.id ?? null}
       error={error}
     />
+  );
+}
+
+export default function App() {
+  return (
+    <WalletProvider autoConnect defaultNetwork="TESTNET">
+      <ModalBoundary />
+    </WalletProvider>
   );
 }
 ```
@@ -136,7 +141,7 @@ const {
   disconnect,         // () => Promise<void>
   signMessage,        // (message: string) => Promise<string>
   signTransaction,    // (xdr: string) => Promise<string>
-  setActiveChain,     // (chain) => void
+  setActiveChain,     // (chain: StellarNetwork) => void
 
   // Modal
   isModalOpen,
@@ -153,7 +158,7 @@ const { signMessage, isConnected } = useWallet();
 const onSign = async () => {
   if (!isConnected) return;
   try {
-    const signature = await signMessage("Hello Stellar 👋");
+    const signature = await signMessage("Hello Stellar!");
     console.log("Signature:", signature);
   } catch (e) {
     console.error("User rejected the request:", e);
@@ -161,80 +166,118 @@ const onSign = async () => {
 };
 ```
 
+### Per-action loading state
+
+```tsx
+const { connect, actionLoading, actionError } = useWalletActions();
+
+<button
+  disabled={actionLoading}
+  onClick={() => void connect("freighter")}
+>
+  {actionLoading ? "Connecting…" : "Connect"}
+</button>
+```
+
+> `connect` (and `disconnect`) **re-throw** on rejection after updating state, so
+> you can `try/catch` them or catch through the returned promise.
+
 ---
 
 ## 🌐 Supported Wallets
 
-| Wallet | Install | Connect | Sign |
-|--------|---------|---------|------|
-| **Freighter** | Chrome/Firefox extension | `requestAccess()` | `signMessage()` / `signTransaction()` |
-| **Albedo** | Web (intent popup) | `publicKey()` | `signMessage()` / `tx()` |
-| **Hana** | Desktop extension / wallet kit | Native injection | `signMessage()` / `signTransaction()` |
+All wallets are integrated through the official Stellar Wallets Kit:
+
+| Wallet | Type | Notes |
+|--------|------|-------|
+| **Freighter** | Browser extension | Native permission flow |
+| **Albedo** | Web (intent popup) | No extension required |
+| **Hana** | Desktop extension | Also detected via injected provider |
 
 ---
 
-## 🧱 Architecture
+## 🏗️ Architecture
 
 ```
 src/
-├── adapters/
-│   ├── freighter.ts     # @stellar/freighter-api integration
-│   ├── albedo.ts        # @albedo-link/intent integration
-│   ├── hana.ts          # Hana (native + @creit.tech kit) integration
-│   └── index.ts
-├── components/
-│   └── ConnectModal.tsx # Accessible, responsive modal + WalletButton
-├── context/
-│   └── WalletContext.tsx# WalletProvider + context + useWallet
-├── hooks/
-│   └── useWallet.ts     # useWallet() + useWalletActions()
-├── types/
-│   └── index.ts         # Shared strict types
-├── constants.ts         # Networks, passphrases, storage keys
-├── index.tsx            # Library entry point
-└── styles.css           # Tailwind directives
+├── adapters/          # Wallet adapters (thin wrappers over the official kit)
+├── components/        # ConnectModal + WalletButton (accessible, responsive)
+├── context/           # WalletProvider + WalletContext + useWallet
+├── hooks/             # useWallet() + useWalletActions()
+├── kit/               # Thin integration with @creit.tech/stellar-wallets-kit
+├── types/             # Shared strict types
+├── constants.ts       # Networks, passphrases, storage keys
+├── test/              # Vitest + Testing Library suite (mock adapters)
+└── index.tsx          # Library entry point
 ```
+
+### Why not just use the Stellar Wallets Kit directly?
+
+The official kit is excellent at *wallet communication* — and we lean on it for
+that. What we add is the React ergonomics:
+
+- A typed `WalletProvider` + `useWallet` context that exposes only what dApps
+  need (`walletAddress`, `isConnected`, `isConnecting`, `activeChain`, `signer`).
+- Auto-reconnect and connection-state management out of the box.
+- An **accessible, keyboard-friendly modal** with live wallet availability.
+- Per-action loading/error state via `useWalletActions`.
 
 ---
 
 ## 🛡️ Accessibility
 
-- **Keyboard**: `Escape` closes the modal; focus management is keyboard-friendly.
-- **ARIA**: `role="dialog"`, `aria-modal`, `aria-label` on buttons.
-- **Live states**: Each wallet shows "Checking…" / "Available" / "Not detected" with a loading spinner during connection.
+- **Keyboard**: `Escape` closes the modal; focus is managed.
+- **ARIA**: `role="dialog"`, `aria-modal`, `aria-label` on interactive elements.
+- **Live states**: each wallet shows "Checking…" / "Available" / "Not detected".
 - **Click-outside** to dismiss.
 
 ---
 
-## 🏗️ Tooling
+## 🧪 Tests
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Watch-mode build |
-| `npm run build` | Production build (CJS + ESM + types) |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm run lint` | ESLint |
+The suite uses [Vitest](https://vitest.dev/) + [Testing Library](https://testing-library.com/)
+with **mock wallet adapters**, so no real wallets are required:
+
+```bash
+npm run test
+```
+
+Coverage: provider connect/disconnect/auto-reconnect/error handling, modal
+rendering/availability/accessibility, and hook loading/error state.
 
 ---
 
 ## 🧪 Example App
 
-A full interactive example lives in [`/example`](./example). It renders the
-library against a Vite + React + Tailwind app so you can see the modal, wallet
-detection, auto-reconnect, message signing, and network switching in the
-browser.
+A live interactive example lives in [`/example`](./example):
 
 ```bash
 cd example
 npm install
-npm run dev
-# open http://localhost:5173
+npm run dev      # open http://localhost:5173
 ```
 
-> Tip: install the **Freighter** Chrome extension to test a real connection.
+Install the **Freighter** extension to test a real connection.
+
+---
+
+## 🌊 Drips Wave
+
+This repository participates in the **Stellar Wave Program**. Contributions
+(issues, PRs) earn points that convert to a share of the Wave reward pool. See
+[`CONTRIBUTING.md`](./CONTRIBUTING.md) for how to get started, or browse
+[open issues](https://github.com/OlaBakare/stellar-wallet-adapter/issues).
+
+---
+
+## 🤝 Contributing
+
+Please read [`CONTRIBUTING.md`](./CONTRIBUTING.md) for guidelines. All
+contributions are welcome — and the repo runs CI (typecheck + lint + test +
+build) on every PR.
 
 ---
 
 ## 📄 License
 
-MIT © Stellar Wallet Adapter contributors
+MIT © OlaBakare
