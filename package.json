@@ -1,0 +1,72 @@
+{
+  "name": "stellar-wallet-adapter",
+  "version": "1.0.0",
+  "description": "Plug-and-play React UI library for Stellar wallet connections — supports Freighter, Albedo, and Hana.",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.tsx --format cjs,esm --dts",
+    "dev": "tsup src/index.tsx --format cjs,esm --dts --watch",
+    "lint": "eslint src --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "stellar",
+    "wallet",
+    "adapter",
+    "freighter",
+    "albedo",
+    "hana",
+    "web3",
+    "react",
+    "blockchain"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "OlaBakare",
+    "email": "olawalebakaredapo@gmail.com",
+    "url": "https://github.com/OlaBakare"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "dependencies": {
+    "@albedo-link/intent": "^0.13.0",
+    "@creit.tech/stellar-wallets-kit": "^2.5.0",
+    "@stellar/freighter-api": "^6.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "autoprefixer": "^10.4.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "postcss": "^8.4.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tailwindcss": "^3.4.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OlaBakare/stellar-wallet-adapter"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": false
+    },
+    "react-dom": {
+      "optional": false
+    }
+  }
+}
