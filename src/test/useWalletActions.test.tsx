@@ -65,4 +65,43 @@ describe("useWalletActions", () => {
     expect(result.current.actionError).toBe("Connection rejected by user.");
     expect(result.current.isConnected).toBe(false);
   });
+
+  it("captures disconnect errors and still clears connection state", async () => {
+    const adapter = createMockAdapter({
+      disconnect: async () => {
+        throw new Error("Disconnect failed.");
+      },
+    });
+    const { result } = renderHook(() => useWalletActions(), {
+      wrapper: wrapper([adapter]),
+    });
+
+    await act(async () => {
+      await result.current.connect("mock");
+    });
+    await act(async () => {
+      await result.current.disconnect();
+    });
+
+    expect(result.current.actionError).toBe("Disconnect failed.");
+    expect(result.current.isConnected).toBe(false);
+  });
+
+  it("forwards transaction and message signing results", async () => {
+    const adapter = createMockAdapter();
+    const { result } = renderHook(() => useWalletActions(), {
+      wrapper: wrapper([adapter]),
+    });
+
+    await act(async () => {
+      await result.current.connect("mock");
+    });
+
+    await expect(result.current.signTransaction("xdr")).resolves.toBe(
+      "signed:xdr:Test SDF Network ; September 2015"
+    );
+    await expect(result.current.signMessage("hello")).resolves.toBe(
+      "mock-signature"
+    );
+  });
 });
