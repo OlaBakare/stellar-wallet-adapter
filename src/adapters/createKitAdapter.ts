@@ -1,5 +1,5 @@
 import type { ModuleInterface } from "@creit.tech/stellar-wallets-kit/types";
-import type { WalletAdapter } from "../types";
+import type { StellarNetwork, WalletAdapter } from "../types";
 import {
   ensureKitInitialized,
   kitDisconnect,
@@ -9,7 +9,7 @@ import {
   kitSignTransaction,
   selectKitWallet,
 } from "../kit/kit-manager";
-import { NETWORK_PASSPHRASES } from "../constants";
+import { DEFAULT_NETWORK } from "../constants";
 
 export interface KitAdapterConfig {
   id: string;
@@ -29,7 +29,7 @@ export interface KitAdapterConfig {
 export function createKitAdapter(config: KitAdapterConfig): WalletAdapter {
   const loadModule = async (): Promise<ModuleInterface> => {
     const mod = await config.module();
-    ensureKitInitialized([mod]);
+    await ensureKitInitialized([mod]);
     return mod;
   };
 
@@ -51,9 +51,9 @@ export function createKitAdapter(config: KitAdapterConfig): WalletAdapter {
       }
     },
 
-    connect: async () => {
+    connect: async (network: StellarNetwork = DEFAULT_NETWORK) => {
       await loadModule();
-      await selectKitWallet(config.id);
+      await selectKitWallet(config.id, network);
       const address = await kitGetAddress();
       if (!address) {
         throw new Error(
@@ -66,16 +66,20 @@ export function createKitAdapter(config: KitAdapterConfig): WalletAdapter {
     disconnect: () => {
       // Extension wallets (Freighter/Hana) manage their own sessions.
       // We clear kit state to reflect a logical disconnect.
-      return kitDisconnect().catch(() => undefined);
+      return kitDisconnect();
     },
 
-    getAddress: () => kitGetAddress().catch(() => ""),
+    getAddress: async (network: StellarNetwork = DEFAULT_NETWORK) => {
+      await loadModule();
+      await selectKitWallet(config.id, network);
+      return kitGetAddress();
+    },
 
     signTransaction: (xdr: string, networkPassphrase: string) =>
       kitSignTransaction(xdr, networkPassphrase),
 
-    signMessage: (message: string, address: string) =>
-      kitSignMessage(message, address, NETWORK_PASSPHRASES.TESTNET),
+    signMessage: (message: string, address: string, networkPassphrase: string) =>
+      kitSignMessage(message, address, networkPassphrase),
 
     getNetwork: () => kitGetNetwork(),
   };

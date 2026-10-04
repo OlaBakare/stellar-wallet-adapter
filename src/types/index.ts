@@ -5,11 +5,15 @@ export interface WalletAdapter {
   name: string;
   icon: string;
   isAvailable: () => Promise<boolean> | boolean;
-  connect: () => Promise<string>;
+  connect: (network?: StellarNetwork) => Promise<string>;
   disconnect: () => Promise<void>;
-  getAddress: () => Promise<string>;
+  getAddress: (network?: StellarNetwork) => Promise<string>;
   signTransaction: (xdr: string, networkPassphrase: string) => Promise<string>;
-  signMessage: (message: string, address: string) => Promise<string>;
+  signMessage: (
+    message: string,
+    address: string,
+    networkPassphrase: string
+  ) => Promise<string>;
   getNetwork: () => Promise<{ network: string; networkPassphrase: string }>;
 }
 

@@ -16,6 +16,8 @@ function Consumer() {
     connect,
     disconnect,
     signMessage,
+    signTransaction,
+    setActiveChain,
   } = useWallet();
 
   return (
@@ -28,6 +30,12 @@ function Consumer() {
       <button onClick={() => void connect("missing").catch(() => undefined)}>connect-missing</button>
       <button onClick={() => void disconnect()}>disconnect</button>
       <button onClick={() => void signMessage("hi").catch(() => undefined)}>sign</button>
+      <button onClick={() => setActiveChain("PUBLIC")}>set-PUBLIC</button>
+      <button onClick={() => setActiveChain("TESTNET")}>set-TESTNET</button>
+      <button onClick={() => setActiveChain("FUTURENET")}>set-FUTURENET</button>
+      <button onClick={() => void signTransaction("xdr").catch(() => undefined)}>
+        sign-transaction
+      </button>
     </div>
   );
 }
@@ -66,6 +74,42 @@ describe("WalletProvider", () => {
       MOCK_ADDRESS
     );
   });
+
+  it.each([
+    ["PUBLIC", "Public Global Stellar Network ; September 2015"],
+    ["TESTNET", "Test SDF Network ; September 2015"],
+    ["FUTURENET", "Future Stellar Network ; September 2022"],
+  ] as const)(
+    "uses the selected %s passphrase for both signing methods",
+    async (network, passphrase) => {
+      const signMessage = vi.fn(async () => "signed-message");
+      const signTransaction = vi.fn(async () => "signed-xdr");
+      const adapter = createMockAdapter({ signMessage, signTransaction });
+      render(
+        <WalletProvider wallets={[adapter]} autoConnect={false}>
+          <Consumer />
+        </WalletProvider>
+      );
+
+      fireEvent.click(screen.getByText("connect-mock"));
+      await waitFor(() =>
+        expect(screen.getByTestId("connected")).toHaveTextContent("true")
+      );
+      fireEvent.click(screen.getByText(`set-${network}`));
+      fireEvent.click(screen.getByText("sign"));
+      await waitFor(() =>
+        expect(signMessage).toHaveBeenCalledWith(
+          "hi",
+          MOCK_ADDRESS,
+          passphrase
+        )
+      );
+      fireEvent.click(screen.getByText("sign-transaction"));
+      await waitFor(() =>
+        expect(signTransaction).toHaveBeenCalledWith("xdr", passphrase)
+      );
+    }
+  );
 
   it("disconnects and clears persisted state", async () => {
     render(
@@ -106,6 +150,7 @@ describe("WalletProvider", () => {
   it("auto-reconnects from localStorage on mount", async () => {
     localStorage.setItem("stellar-wallet-adapter:walletId", "mock");
     localStorage.setItem("stellar-wallet-adapter:address", MOCK_ADDRESS);
+    localStorage.setItem("stellar-wallet-adapter:network", "PUBLIC");
 
     const adapter = createMockAdapter();
     const getAddressSpy = vi.spyOn(adapter, "getAddress");
@@ -116,9 +161,7 @@ describe("WalletProvider", () => {
       </WalletProvider>
     );
 
-    await waitFor(() =>
-      expect(getAddressSpy).toHaveBeenCalled()
-    );
+    await waitFor(() => expect(getAddressSpy).toHaveBeenCalledWith("PUBLIC"));
     await waitFor(() =>
       expect(screen.getByTestId("connected")).toHaveTextContent("true")
     );
@@ -127,7 +170,6 @@ describe("WalletProvider", () => {
 
   it("throws a descriptive error when signing while disconnected", async () => {
     const { useWallet } = await import("../context/WalletContext");
-    const signSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     let capturedError = "";
 
     function SignConsumer() {
@@ -153,6 +195,5 @@ describe("WalletProvider", () => {
 
     fireEvent.click(screen.getByText("sign"));
     await vi.waitFor(() => expect(capturedError).toBe("Wallet is not connected."));
-    signSpy.mockRestore();
   });
 });
