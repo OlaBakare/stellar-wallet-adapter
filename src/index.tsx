@@ -54,3 +54,12 @@ const ConnectedModalBoundary: FC<{ children: ReactNode }> = ({ children }) => {
 };
 
 export { WalletProvider, useWallet, ConnectModal };
+export { useWalletActions } from "./hooks/useWallet";
+export type {
+  ConnectModalProps,
+  StellarNetwork,
+  WalletAdapter,
+  WalletContextValue,
+  WalletProviderProps,
+  WalletState,
+} from "./types";
