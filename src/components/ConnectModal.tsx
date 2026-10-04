@@ -20,6 +20,7 @@ export const ConnectModal: FC<ConnectModalProps> = ({
   const [availableWallets, setAvailableWallets] = useState<
     Record<string, boolean>
   >({});
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -111,6 +112,8 @@ export const ConnectModal: FC<ConnectModalProps> = ({
             const isAvailable = availableWallets[wallet.id];
             const isLoading = connectingWalletId === wallet.id;
             const disabled = isConnecting || isLoading;
+            const hasImageError = Boolean(imageErrors[wallet.id]);
+            const showImage = Boolean(wallet.icon) && !hasImageError;
 
             return (
               <button
@@ -121,19 +124,27 @@ export const ConnectModal: FC<ConnectModalProps> = ({
                 className="w-full flex items-center justify-between gap-3 px-4 py-3.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 hover:border-[#0805F6] dark:hover:border-[#B0C4FF] hover:bg-gray-50 dark:hover:bg-white/10 transition-all disabled:opacity-60 disabled:cursor-not-allowed group"
               >
                 <span className="flex items-center gap-3">
-                  <span className="w-11 h-11 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-white/10 overflow-hidden">
-                    {wallet.icon ? (
+                  <span
+                    aria-hidden="true"
+                    className="w-11 h-11 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-white/10 overflow-hidden"
+                  >
+                    {showImage ? (
                       <img
                         src={wallet.icon}
-                        alt={`${wallet.name} logo`}
+                        alt=""
                         className="w-7 h-7 object-contain"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).style.display =
-                            "none";
+                        onError={() => {
+                          setImageErrors((prev) => ({
+                            ...prev,
+                            [wallet.id]: true,
+                          }));
                         }}
                       />
                     ) : (
-                      <span className="text-lg font-bold text-[#0805F6] dark:text-[#B0C4FF]">
+                      <span
+                        data-testid="wallet-icon-fallback"
+                        className="text-lg font-bold text-[#0805F6] dark:text-[#B0C4FF]"
+                      >
                         {wallet.name.charAt(0)}
                       </span>
                     )}
