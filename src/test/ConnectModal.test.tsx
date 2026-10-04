@@ -121,4 +121,59 @@ describe("ConnectModal", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalled();
   });
+
+  it("renders wallet icon when provided and replaces with accessible fallback on error", async () => {
+    const onSelect = vi.fn();
+    const walletsWithIcons = [
+      createMockAdapter({
+        id: "freighter",
+        name: "Freighter",
+        icon: "https://example.com/freighter.png",
+      }),
+      createMockAdapter({
+        id: "albedo",
+        name: "Albedo",
+        icon: "https://example.com/broken-albedo.png",
+      }),
+    ];
+
+    render(
+      <ConnectModal
+        isOpen
+        onClose={() => undefined}
+        wallets={walletsWithIcons}
+        onSelectWallet={onSelect}
+        isConnecting={false}
+        connectingWalletId={null}
+        error={null}
+      />
+    );
+
+    await screen.findByText("Freighter");
+    const albedoButton = screen.getByRole("button", { name: /albedo/i });
+
+    // Both images are initially rendered
+    let images = document.querySelectorAll<HTMLImageElement>("img");
+    expect(images).toHaveLength(2);
+    expect(images[0]).toHaveAttribute("src", "https://example.com/freighter.png");
+    expect(images[1]).toHaveAttribute("src", "https://example.com/broken-albedo.png");
+
+    // Simulate image load error for Albedo
+    fireEvent.error(images[1]);
+
+    // Broken image is removed and stable fallback is displayed
+    images = document.querySelectorAll<HTMLImageElement>("img");
+    expect(images).toHaveLength(1);
+    const fallback = screen.getByTestId("wallet-icon-fallback");
+    expect(fallback).toBeInTheDocument();
+    expect(fallback).toHaveTextContent("A");
+
+    // The wallet button remains selectable
+    fireEvent.click(albedoButton);
+    expect(onSelect).toHaveBeenCalledWith("albedo");
+
+    // The button remains accessible under the same role and accessible name
+    expect(screen.getByRole("button", { name: /albedo/i })).toBe(albedoButton);
+  });
 });
+
