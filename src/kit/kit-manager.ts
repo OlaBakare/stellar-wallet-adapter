@@ -12,31 +12,65 @@ import type {
   Networks,
 } from "@creit.tech/stellar-wallets-kit/types";
 import type { StellarNetwork } from "../types";
-import { NETWORK_PASSPHRASES, DEFAULT_NETWORK } from "../constants";
+import { NETWORK_PASSPHRASES } from "../constants";
 
-let initialized = false;
+const registeredModules = new Map<string, ModuleInterface>();
+let initializedModuleIds = new Set<string>();
+let initialization = Promise.resolve();
 
 /**
- * Registers the given kit modules once. Subsequent calls are no-ops.
+ * Registers every requested module before wallet actions use the kit.
+ * The kit replaces its module registry on each init call, so subsequent
+ * adapters must be initialized with the complete module set.
  */
-export function ensureKitInitialized(modules: ModuleInterface[]): void {
-  if (initialized) return;
-  // Defer the heavy import so the library can be used for SSR/static sites
-  // without eagerly loading the kit until a wallet action is performed.
-  void import("@creit.tech/stellar-wallets-kit").then(({ StellarWalletsKit }) => {
-    StellarWalletsKit.init({ modules });
-    initialized = true;
+export function ensureKitInitialized(
+  modules: ModuleInterface[]
+): Promise<void> {
+  for (const module of modules) {
+    if (!registeredModules.has(module.productId)) {
+      registeredModules.set(module.productId, module);
+    }
+  }
+
+  const requestedIds = new Set(registeredModules.keys());
+  if (
+    requestedIds.size === initializedModuleIds.size &&
+    [...requestedIds].every((id) => initializedModuleIds.has(id))
+  ) {
+    return initialization;
+  }
+
+  initialization = initialization.catch(() => undefined).then(async () => {
+    const moduleIds = new Set(registeredModules.keys());
+    if (
+      moduleIds.size === initializedModuleIds.size &&
+      [...moduleIds].every((id) => initializedModuleIds.has(id))
+    ) {
+      return;
+    }
+
+    // Defer the heavy import so static/SSR use does not eagerly load the kit.
+    const { StellarWalletsKit } = await import(
+      "@creit.tech/stellar-wallets-kit"
+    );
+    StellarWalletsKit.init({ modules: [...registeredModules.values()] });
+    initializedModuleIds = moduleIds;
   });
+
+  return initialization;
 }
 
 /**
  * Selects a registered module as the kit's active wallet.
  */
-export function selectKitWallet(moduleId: string): Promise<void> {
+export function selectKitWallet(
+  moduleId: string,
+  network: StellarNetwork
+): Promise<void> {
   return import("@creit.tech/stellar-wallets-kit").then(
     ({ StellarWalletsKit }) => {
       StellarWalletsKit.setWallet(moduleId);
-      StellarWalletsKit.setNetwork(mapNetworkToKit(DEFAULT_NETWORK));
+      StellarWalletsKit.setNetwork(mapNetworkToKit(network));
     }
   );
 }

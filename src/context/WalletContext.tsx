@@ -27,6 +27,14 @@ const DEFAULT_WALLETS: WalletAdapter[] = [
   hanaAdapter,
 ];
 
+function isStellarNetwork(network: string | null): network is StellarNetwork {
+  return (
+    network === "PUBLIC" ||
+    network === "TESTNET" ||
+    network === "FUTURENET"
+  );
+}
+
 export const WalletProvider: FC<WalletProviderProps> = ({
   children,
   defaultNetwork = DEFAULT_NETWORK,
@@ -57,16 +65,16 @@ export const WalletProvider: FC<WalletProviderProps> = ({
   const connect = useCallback(
     async (walletId: string) => {
       if (isConnecting) return;
-      const wallet =
-        wallets.find((w) => w.id === walletId) ?? activeWallet ?? null;
+      const wallet = wallets.find((w) => w.id === walletId) ?? null;
       if (!wallet) {
-        setError("Select a wallet to connect.");
-        return;
+        const message = "Select a supported wallet to connect.";
+        setError(message);
+        throw new Error(message);
       }
       setIsConnecting(true);
       setError(null);
       try {
-        const address = await wallet.connect();
+        const address = await wallet.connect(activeChain);
         setWalletAddress(address);
         setIsConnected(true);
         setActiveWallet(wallet);
@@ -84,30 +92,31 @@ export const WalletProvider: FC<WalletProviderProps> = ({
         setActiveWallet(null);
         // Re-throw so callers using `useWalletActions` (or a try/catch) can
         // react to the rejected request directly.
-        throw new Error(message);
+        throw err instanceof Error ? err : new Error(message);
       } finally {
         setIsConnecting(false);
       }
     },
-    // activeWallet intentionally omitted to avoid stale reference in auto-reconnect
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isConnecting, wallets]
+    [activeChain, isConnecting, wallets]
   );
 
   const disconnect = useCallback(async () => {
+    let disconnectError: Error | null = null;
     try {
       await activeWallet?.disconnect();
-    } catch {
-      // best-effort disconnect
+    } catch (err) {
+      disconnectError =
+        err instanceof Error ? err : new Error("Wallet disconnect failed.");
     }
     setWalletAddress("");
     setIsConnected(false);
     setActiveWallet(null);
-    setError(null);
+    setError(disconnectError?.message ?? null);
     if (typeof window !== "undefined") {
       localStorage.removeItem(STORAGE_KEYS.WALLET_ID);
       localStorage.removeItem(STORAGE_KEYS.ADDRESS);
     }
+    if (disconnectError) throw disconnectError;
   }, [activeWallet]);
 
   const signTransaction = useCallback(
@@ -135,14 +144,18 @@ export const WalletProvider: FC<WalletProviderProps> = ({
         throw new Error("Wallet is not connected.");
       }
       try {
-        return await activeWallet.signMessage(message, walletAddress);
+        return await activeWallet.signMessage(
+          message,
+          walletAddress,
+          NETWORK_PASSPHRASES[activeChain]
+        );
       } catch (err) {
         throw new Error(
           err instanceof Error ? err.message : "Message signing rejected."
         );
       }
     },
-    [isConnected, activeWallet, walletAddress]
+    [isConnected, activeWallet, walletAddress, activeChain]
   );
 
   const openModal = useCallback(() => setIsModalOpen(true), []);
@@ -154,13 +167,11 @@ export const WalletProvider: FC<WalletProviderProps> = ({
 
     const storedWalletId = localStorage.getItem(STORAGE_KEYS.WALLET_ID);
     const storedAddress = localStorage.getItem(STORAGE_KEYS.ADDRESS);
-    const storedNetwork = localStorage.getItem(
-      STORAGE_KEYS.NETWORK
-    ) as StellarNetwork | null;
-
-    if (storedNetwork && (storedNetwork === "PUBLIC" || storedNetwork === "TESTNET" || storedNetwork === "FUTURENET")) {
-      setActiveChainState(storedNetwork);
-    }
+    const storedNetwork = localStorage.getItem(STORAGE_KEYS.NETWORK);
+    const network = isStellarNetwork(storedNetwork)
+      ? storedNetwork
+      : defaultNetwork;
+    setActiveChainState(network);
 
     if (!storedWalletId || !storedAddress) return;
 
@@ -174,7 +185,7 @@ export const WalletProvider: FC<WalletProviderProps> = ({
         setError("Wallet extension not installed. Please install it and try again.");
         return;
       }
-      const address = await wallet.getAddress();
+      const address = await wallet.getAddress(network);
       if (!address) {
         setError("Wallet is locked or unauthorized.");
         return;
@@ -182,12 +193,16 @@ export const WalletProvider: FC<WalletProviderProps> = ({
       setWalletAddress(address);
       setIsConnected(true);
       setActiveWallet(wallet);
-    } catch {
-      setError("Auto-reconnect failed. Please reconnect manually.");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? `Auto-reconnect failed: ${err.message}`
+          : "Auto-reconnect failed. Please reconnect manually."
+      );
     } finally {
       setIsConnecting(false);
     }
-  }, [wallets, setActiveChainState]);
+  }, [defaultNetwork, wallets]);
 
   useEffect(() => {
     if (autoConnect) {

@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { StellarWalletAdapter, useWallet } from "stellar-wallet-adapter";
 
+const NETWORKS = ["PUBLIC", "TESTNET", "FUTURENET"] as const;
+const configuredNetwork = NETWORKS.find(
+  (network) => network === import.meta.env.VITE_STELLAR_NETWORK
+) ?? "TESTNET";
+
 /**
  * Interactive example demonstrating the Stellar Wallet Adapter:
  * - Wallet detection + connection via the modal
@@ -196,7 +201,7 @@ function ConnectDemo() {
 
 export default function App() {
   return (
-    <StellarWalletAdapter defaultNetwork="TESTNET" autoConnect>
+    <StellarWalletAdapter defaultNetwork={configuredNetwork} autoConnect>
       <ConnectDemo />
     </StellarWalletAdapter>
   );
